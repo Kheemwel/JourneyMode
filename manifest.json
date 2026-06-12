@@ -1,0 +1,39 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Journey Mode BP",
+    "description": "Behavior pack for the Journey Mode Addon - adds research and item cloning systems.",
+    "uuid": "8d7c49b6-4b2a-4f9e-bc22-38e9a2d6b1a1",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 21, 0]
+  },
+  "modules": [
+    {
+      "type": "data",
+      "uuid": "c3e5d9c3-1f8a-4c4c-be82-7901d8e5b404",
+      "version": [1, 0, 0]
+    },
+    {
+      "description": "Journey Mode Script Module",
+      "type": "script",
+      "language": "javascript",
+      "uuid": "a2e5d9c3-1f8a-4c4c-be82-7901d8e5b403",
+      "version": [1, 0, 0],
+      "entry": "scripts/main.js"
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "2.4.0"
+    },
+    {
+      "module_name": "@minecraft/server-ui",
+      "version": "2.0.0"
+    }
+  ],
+  "metadata": {
+    "product_type": "addon",
+    "authors": ["Kimwel"]
+  }
+}
