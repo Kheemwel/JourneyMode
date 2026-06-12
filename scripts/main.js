@@ -17,12 +17,10 @@ system.beforeEvents.startup.subscribe(({ customCommandRegistry }) => {
   console.warn("[Journey Mode] Registering commands...");
 
   try {
-    // 1. Unify ALL enums under the strict "journey" namespace
+    // 1. A single flat enum representing your base command actions
     customCommandRegistry.registerEnum("journey:action", ["menu", "book", "research_scale"]);
-    customCommandRegistry.registerEnum("journey:scale_values", ["1", "16", "32", "64"]);
-    customCommandRegistry.registerEnum("journey:journal_action", ["book"]); 
 
-    // 2. Register /journey
+    // 2. Register unified /journey command
     customCommandRegistry.registerCommand(
       {
         name: "journey:journey",
@@ -31,74 +29,62 @@ system.beforeEvents.startup.subscribe(({ customCommandRegistry }) => {
         cheatsRequired: false,
         mandatoryParameters: [
           {
-            name: "journey:action", 
+            name: "journey:action", // Clear parameter name for the action hint
             type: CustomCommandParamType.Enum,
             enumName: "journey:action"
           }
         ],
         optionalParameters: [
           {
-            name: "journey:scale_values", 
-            type: CustomCommandParamType.Enum,
-            enumName: "journey:scale_values"
+            name: "scale", // Shows up cleanly as [scale:int] when research_scale is picked
+            type: CustomCommandParamType.Integer
           }
         ]
       },
-      (origin, journeyAction, journeyScale) => {
+      (origin, action, scale) => {
         const player = origin.sourceEntity;
         if (!player) return { status: CustomCommandStatus.Failure };
 
-        if (journeyAction === "menu") {
+        // Handle: /journey menu
+        if (action === "menu") {
           system.run(() => showMainMenu(player));
-        } else if (journeyAction === "book") {
+          return { status: CustomCommandStatus.Success };
+        } 
+        
+        // Handle: /journey book
+        if (action === "book") {
           system.run(() => giveJourneyBook(player));
-        } else if (journeyAction === "research_scale") {
-          const isAdmin = player.commandPermissionLevel >= 2 || player.hasTag("admin");
-          if (!isAdmin) {
-            player.sendMessage("§cYou must be an operator to change the research scale.");
+          return { status: CustomCommandStatus.Success };
+        }
+
+        // Handle: /journey research_scale [scale]
+        if (action === "research_scale") {
+          // Admin verification check
+          const isOp = player.hasTag("admin") || player.commandPermissionLevel >= 2;
+          if (!isOp) {
+            player.sendMessage("§cYou must have the 'admin' tag or be an operator to change the research scale.");
             return { status: CustomCommandStatus.Failure };
           }
-          if (!journeyScale) {
-            player.sendMessage("§cPlease specify a scale: /journey:journey research_scale <1|16|32|64>");
+
+          if (scale === undefined || scale === null) {
+            player.sendMessage("§cPlease specify a scale number: /journey research_scale [scale:int]");
             return { status: CustomCommandStatus.Failure };
           }
-          const value = parseInt(journeyScale);
+
+          const value = Math.max(1, Math.min(64, scale));
           system.run(() => {
             try {
               world.setDynamicProperty("journey:research_multiplier", value);
-              player.sendMessage(`§aResearch scale set to §e${value}§a.`);
+              player.sendMessage(`§aResearch scale limit updated to §e${value}§a.`);
             } catch (e) {
-              player.sendMessage("§cFailed to save multiplier.");
+              player.sendMessage("§cFailed to save research multiplier dynamic property.");
             }
           });
-        }
-        return { status: CustomCommandStatus.Success };
-      }
-    );
 
-    // 3. Register /journey_journal (Changed namespace prefix from journal to journey)
-    customCommandRegistry.registerCommand(
-      {
-        name: "journey:journal",
-        description: "Journal command interface.",
-        permissionLevel: CommandPermissionLevel.Any,
-        cheatsRequired: false,
-        mandatoryParameters: [
-          {
-            name: "journey:journal_action", 
-            type: CustomCommandParamType.Enum,
-            enumName: "journey:journal_action"
-          }
-        ]
-      },
-      (origin, journalAction) => {
-        const player = origin.sourceEntity;
-        if (!player) return { status: CustomCommandStatus.Failure };
-
-        if (journalAction === "book") {
-          system.run(() => giveJourneyBook(player));
+          return { status: CustomCommandStatus.Success };
         }
-        return { status: CustomCommandStatus.Success };
+
+        return { status: CustomCommandStatus.Failure };
       }
     );
 
@@ -109,7 +95,7 @@ system.beforeEvents.startup.subscribe(({ customCommandRegistry }) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GIVE BOOK ON SPAWN
+// AUTOMATIC GIVE BOOK ON SPAWN
 // ─────────────────────────────────────────────────────────────────────────────
 system.runTimeout(() => {
   world.afterEvents.playerSpawn.subscribe((ev) => {
@@ -121,18 +107,18 @@ system.runTimeout(() => {
           giveJourneyBook(player);
           if (ev.initialSpawn) {
             player.sendMessage("§e[Journey Mode] §7You received the §eJourney Mode§7 book.");
-            player.sendMessage("§7Right-click to open Codex. Lost it? Use §e/journal:journal book");
+            player.sendMessage("§7Right-click to open Codex. Lost it? Use §e/journey book");
           }
         }
       } catch (e) {
-        console.warn("[Journey Mode] Error giving book:", e);
+        console.warn("[Journey Mode] Error giving book on spawn:", e);
       }
     }, 60);
   });
 }, 20);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BOOK TRIGGER — Right-click in air
+// BOOK INTERACTION LISTENERS
 // ─────────────────────────────────────────────────────────────────────────────
 world.beforeEvents.itemUse.subscribe((event) => {
   if (isJourneyBook(event.itemStack)) {
@@ -141,9 +127,6 @@ world.beforeEvents.itemUse.subscribe((event) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BOOK TRIGGER — Right-click on block (Fixed for 2026 Script API changes)
-// ─────────────────────────────────────────────────────────────────────────────
 world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
   if (isJourneyBook(event.itemStack)) {
     event.cancel = true;
@@ -154,7 +137,6 @@ world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-
 function hasJourneyBook(player) {
   try {
     const inv = player.getComponent("minecraft:inventory");
@@ -186,7 +168,7 @@ function giveJourneyBook(player) {
     book.setLore([
       "§7Right-click to open the Journey Mode Codex.",
       "",
-      "§8Lost it? Use /journal:journal book"
+      "§8Lost it? Use /journey book"
     ]);
 
     const leftover = inv.container.addItem(book);

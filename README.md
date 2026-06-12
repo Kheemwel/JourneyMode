@@ -1,4 +1,4 @@
-# Journey Mode BP
+# Journey Mode
 
 A Minecraft Bedrock Edition behavior pack addon that adds research and item cloning systems to enhance your gameplay experience.
 
@@ -23,6 +23,29 @@ A Minecraft Bedrock Edition behavior pack addon that adds research and item clon
 ### Mobile Installation
 
 Download the `.mcpack` file from the [releases](../../releases) section and open it with Minecraft Bedrock Edition to import the addon.
+
+## Quick Start Guide
+
+### Accessing the Journey Mode Menu
+
+1. Use the `/journey book` command to get the **Journey Mode book**
+2. **Right-click** (or interact with) the book to open the **Journey Mode Codex**
+3. Alternatively, use the `/journey menu` command directly
+
+### Admin Features & Settings
+
+To unlock the **Settings** and **Reset Progress** options:
+
+1. Run the following command as the world owner or with operator privileges:
+   ```
+   /tag @s add admin
+   ```
+   - `@s` targets yourself (the player executing the command)
+   - Replace `@s` with a specific player name if needed (e.g., `/tag @p add admin`)
+
+2. Open the Journey Mode menu again—you'll now see **Settings** and **Reset My Progress** buttons
+
+3. In **Settings**, adjust the **Research Scaling Limit** (1-64) to control how many items are needed to research an item
 
 ## Requirements
 

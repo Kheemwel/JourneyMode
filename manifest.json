@@ -4,7 +4,7 @@
     "name": "Journey Mode BP",
     "description": "Behavior pack for the Journey Mode Addon - adds research and item cloning systems.",
     "uuid": "8d7c49b6-4b2a-4f9e-bc22-38e9a2d6b1a1",
-    "version": [1, 0, 0],
+    "version": [1, 0, 1],
     "min_engine_version": [1, 21, 0]
   },
   "modules": [
@@ -34,6 +34,6 @@
   ],
   "metadata": {
     "product_type": "addon",
-    "authors": ["Kimwel"]
+    "authors": ["Kheemwel"]
   }
 }

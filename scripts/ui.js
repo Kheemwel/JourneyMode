@@ -1,17 +1,17 @@
 import { system, world, ItemStack } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
-import { getAllItems, getFriendlyName, getTexturePath } from "./db.js";
-import {
-  getResearchProgress,
-  getResearchRequirement,
-  addResearchProgress,
-  isUnlocked,
+import { getAllItems, getFriendlyName } from "./db.js";
+import { 
+  getResearchProgress, 
+  getResearchRequirement, 
+  addResearchProgress, 
+  isUnlocked, 
   resetResearch,
-  getResearchMultiplier,
+  getResearchMultiplier
 } from "./research.js";
 
-function isAdmin(player) {
-  return player.commandPermissionLevel >= 2 || player.hasTag("admin");
+function isPlayerAdmin(player) {
+  return player.hasTag("admin") || player.commandPermissionLevel >= 2;
 }
 
 function defer(callback) {
@@ -21,16 +21,11 @@ function defer(callback) {
 export function showMainMenu(player) {
   const form = new ActionFormData();
   form.title("§eJourney Mode Codex");
-  form.body(
-    "Welcome to the Journey Mode database. Research items to gain infinite duplicates!",
-  );
+  form.body("Welcome to the Journey Mode database. Research items to gain infinite duplicates!");
 
   const actionMap = [];
 
-  form.button(
-    "Research Items in Inventory",
-    "textures/items/book_writable.png",
-  );
+  form.button("Research Items in Inventory", "textures/items/book_writable.png");
   actionMap.push(() => showResearchMenu(player));
 
   form.button("Browse Catalog", "textures/items/book_portfolio.png");
@@ -39,54 +34,50 @@ export function showMainMenu(player) {
   form.button("Search Catalog", "textures/items/compass_item.png");
   actionMap.push(() => showSearchMenu(player));
 
-  if (isAdmin(player)) {
+  if (isPlayerAdmin(player)) {
     form.button("Settings", "textures/items/comparator.png");
     actionMap.push(() => showSettingsMenu(player));
 
-    form.button("Reset My Progress", "textures/ui/arrow_left");
+    form.button("Reset My Progress", "textures/blocks/barrier.png");
     actionMap.push(() => showResetConfirmMenu(player));
   }
 
-  form
-    .show(player)
-    .then((response) => {
-      if (response.canceled || response.selection === undefined) return;
-
-      const handleSelection = actionMap[response.selection];
-      if (handleSelection) {
-        defer(handleSelection);
-      }
-    })
-    .catch((e) => {});
+  form.show(player).then((response) => {
+    if (response.canceled || response.selection === undefined) return;
+    
+    const handleSelection = actionMap[response.selection];
+    if (handleSelection) {
+      defer(handleSelection);
+    }
+  }).catch(() => {});
 }
 
 function getResearchableInventoryItems(player) {
   const inventory = player.getComponent("minecraft:inventory");
   if (!inventory || !inventory.container) return [];
   const container = inventory.container;
-
+  
   const itemsMap = new Map();
-
+  
   for (let i = 0; i < container.size; i++) {
     const item = container.getItem(i);
     if (!item) continue;
-
+    
     const itemId = item.typeId;
     if (isUnlocked(player, itemId)) continue;
-
+    
     if (!itemsMap.has(itemId)) {
       itemsMap.set(itemId, {
         id: itemId,
         name: getFriendlyName(itemId),
-        totalCount: 0,
-        texture: getTexturePath(itemId),
+        totalCount: 0
       });
     }
-
+    
     const entry = itemsMap.get(itemId);
     entry.totalCount += item.amount;
   }
-
+  
   return Array.from(itemsMap.values());
 }
 
@@ -94,12 +85,12 @@ function consumeInventoryItem(player, itemId, amountToConsume) {
   const inventory = player.getComponent("minecraft:inventory");
   if (!inventory || !inventory.container) return false;
   const container = inventory.container;
-
+  
   let remaining = amountToConsume;
   for (let i = 0; i < container.size; i++) {
     const item = container.getItem(i);
     if (!item || item.typeId !== itemId) continue;
-
+    
     if (item.amount <= remaining) {
       remaining -= item.amount;
       container.setItem(i, undefined);
@@ -108,7 +99,7 @@ function consumeInventoryItem(player, itemId, amountToConsume) {
       container.setItem(i, item);
       remaining = 0;
     }
-
+    
     if (remaining <= 0) break;
   }
   return remaining === 0;
@@ -120,10 +111,8 @@ export function showResearchMenu(player) {
   if (items.length === 0) {
     const form = new ActionFormData();
     form.title("Research Inventory");
-    form.body(
-      "No researchable items found in your inventory. (Fully researched items are hidden from this list)",
-    );
-    form.button("Back to Main Menu", "textures/ui/arrow_left");
+    form.body("No researchable items found in your inventory. (Fully researched items are hidden from this list)");
+    form.button("« Back to Main Menu", "textures/ui/arrow_left.png");
 
     form.show(player).then(() => {
       defer(() => showMainMenu(player));
@@ -136,9 +125,9 @@ export function showResearchMenu(player) {
   form.body("Select an item from your inventory to research:");
 
   for (const item of items) {
-    form.button(`${item.name} (${item.totalCount})`, undefined); // undefined icon = no purple square
+    form.button(`${item.name}\n§r§eCount: ${item.totalCount}`, undefined);
   }
-  form.button("Back to Main Menu", "textures/ui/arrow_left"); // Use native UI arrow
+  form.button("« Back to Main Menu", "textures/ui/arrow_left.png");
 
   form.show(player).then((response) => {
     if (response.canceled || response.selection === undefined) return;
@@ -174,7 +163,7 @@ function showResearchItemDetails(player, item) {
   if (totalCount >= 16) {
     form.button("Research 16 Items");
   }
-  form.button("< Back to List", "textures/ui/arrow_left");
+  form.button("« Back to List", "textures/ui/arrow_left.png");
 
   form.show(player).then((response) => {
     if (response.canceled || response.selection === undefined) return;
@@ -188,7 +177,7 @@ function showResearchItemDetails(player, item) {
     }
 
     const currentItems = getResearchableInventoryItems(player);
-    const verifyItem = currentItems.find((i) => i.id === itemId);
+    const verifyItem = currentItems.find(i => i.id === itemId);
     if (!verifyItem || verifyItem.totalCount < 1) {
       player.sendMessage("§cItem no longer in inventory. Research failed.");
       defer(() => showResearchMenu(player));
@@ -210,14 +199,10 @@ function showResearchItemDetails(player, item) {
 
       if (result.unlocked) {
         player.playSound("random.levelup", { volume: 0.8, pitch: 1.0 });
-        player.sendMessage(
-          `§a🎉 UNLOCKED! You now have infinite access to §6${friendlyName}§a!`,
-        );
+        player.sendMessage(`§a🎉 UNLOCKED! You now have infinite access to §6${friendlyName}§a!`);
       } else {
         player.playSound("random.orb", { volume: 0.5, pitch: 1.2 });
-        player.sendMessage(
-          `§eResearched §6${amountToConsume}x ${friendlyName}§e. Progress: §g${result.current}/${result.target}§e.`,
-        );
+        player.sendMessage(`§eResearched §6${amountToConsume}x ${friendlyName}§e. Progress: §g${result.current}/${result.target}§e.`);
       }
 
       defer(() => showResearchMenu(player));
@@ -243,13 +228,13 @@ function showBrowseMenu(player) {
     { name: "Tools & Utility", icon: "textures/items/shears.png" },
     { name: "Food", icon: "textures/items/apple.png" },
     { name: "Blocks", icon: "textures/blocks/stone.png" },
-    { name: "Materials & Items", icon: "textures/items/gold_ingot.png" },
+    { name: "Materials & Items", icon: "textures/items/gold_ingot.png" }
   ];
 
   for (const cat of categories) {
     form.button(cat.name, cat.icon);
   }
-  form.button("Back to Main Menu", "textures/ui/arrow_left");
+  form.button("« Back to Main Menu", "textures/ui/arrow_left.png");
 
   form.show(player).then((response) => {
     if (response.canceled || response.selection === undefined) return;
@@ -267,31 +252,22 @@ function showBrowseMenu(player) {
 function showSearchMenu(player) {
   const form = new ModalFormData();
   form.title("Search Catalog");
+  form.textField("Search Query (e.g. Iron, Wood)", "Enter item name...", { defaultValue: "" });
 
-  // FIX: Converted the 3rd argument to use the compliant object format instead of a plain string
-  form.textField("Search Query (e.g. Iron, Wood)", "Enter item name...", {
-    defaultValue: "",
-  });
+  form.show(player).then((response) => {
+    if (response.canceled || !response.formValues) {
+      defer(() => showMainMenu(player));
+      return;
+    }
 
-  form
-    .show(player)
-    .then((response) => {
-      if (response.canceled || !response.formValues) {
-        defer(() => showMainMenu(player));
-        return;
-      }
-
-      const query = response.formValues[0].trim().toLowerCase();
-      if (query === "") {
-        player.sendMessage("§cSearch query cannot be empty.");
-        defer(() => showMainMenu(player));
-      } else {
-        defer(() => showItemListMenu(player, null, query));
-      }
-    })
-    .catch((err) => {
-      console.error("Search Form Error: ", err);
-    });
+    const query = response.formValues[0].trim().toLowerCase();
+    if (query === "") {
+      player.sendMessage("§cSearch query cannot be empty.");
+      defer(() => showMainMenu(player));
+    } else {
+      defer(() => showItemListMenu(player, null, query));
+    }
+  }).catch(() => {});
 }
 
 function showItemListMenu(player, category, searchQuery = "") {
@@ -305,58 +281,45 @@ function showItemListMenu(player, category, searchQuery = "") {
       const isItemUnlocked = progress >= requirement;
 
       if (category && item.category !== category) continue;
-      if (
-        searchQuery &&
-        !item.name.toLowerCase().includes(searchQuery) &&
-        !item.id.toLowerCase().includes(searchQuery)
-      )
-        continue;
+      if (searchQuery && !item.name.toLowerCase().includes(searchQuery) && !item.id.toLowerCase().includes(searchQuery)) continue;
 
       matchedItems.push({
         ...item,
         progress,
         requirement,
-        unlocked: isItemUnlocked,
+        unlocked: isItemUnlocked
       });
     }
   }
 
   const form = new ActionFormData();
-  form.title(
-    category
-      ? `Catalog: ${category.toUpperCase()}`
-      : `Search: "${searchQuery}"`,
-  );
-
+  form.title(category ? `Catalog: ${category.toUpperCase()}` : `Search: "${searchQuery}"`);
+  
   if (matchedItems.length === 0) {
-    form.body(
-      "No items have been discovered in this category yet. Research items to discover them here!",
-    );
-    form.button("Back", "textures/ui/arrow_left");
+    form.body("No items have been discovered in this category yet. Research items to discover them here!");
+    form.button("« Back", "textures/ui/arrow_left.png");
     form.show(player).then(() => {
-      defer(() => (category ? showBrowseMenu(player) : showMainMenu(player)));
+      defer(() => category ? showBrowseMenu(player) : showMainMenu(player));
     });
     return;
   }
 
-  form.body(
-    "Click an unlocked (Green) item to clone a full stack. Locked (Red) items require more research.",
-  );
+  form.body("Click an unlocked (Green) item to clone a full stack. Locked (Red) items require more research.");
 
   for (const item of matchedItems) {
     const label = item.unlocked
-      ? `§a${item.name} (Unlocked)`
-      : `§c${item.name} (${item.progress}/${item.requirement})`;
-    form.button(label, undefined); // Clean text-only button
+      ? `§a${item.name} (Unlocked)§r\n§7Tap to clone stack`
+      : `§c${item.name} (${item.progress}/${item.requirement})§r\n§7Requires more research`;
+    form.button(label, undefined);
   }
 
-  form.button("Back to Main Menu", "textures/ui/arrow_left"); // Use native UI arrow
+  form.button("« Back", "textures/ui/arrow_left.png");
 
   form.show(player).then((response) => {
     if (response.canceled || response.selection === undefined) return;
 
     if (response.selection === matchedItems.length) {
-      defer(() => (category ? showBrowseMenu(player) : showMainMenu(player)));
+      defer(() => category ? showBrowseMenu(player) : showMainMenu(player));
       return;
     }
 
@@ -367,22 +330,18 @@ function showItemListMenu(player, category, searchQuery = "") {
         const stackSize = selectedItem.maxStack;
         const itemStack = new ItemStack(selectedItem.id, stackSize);
         const remaining = inventory.container.addItem(itemStack);
-
+        
         player.playSound("random.pop", { volume: 0.5, pitch: 1.0 });
 
         if (remaining) {
           player.dimension.spawnItem(remaining, player.location);
-          player.sendMessage(
-            `§cInventory full! Spawned §6${remaining.amount}x ${selectedItem.name}§c at your feet.`,
-          );
+          player.sendMessage(`§cInventory full! Spawned §6${remaining.amount}x ${selectedItem.name}§c at your feet.`);
         } else {
           player.sendMessage(`§aCloned a stack of §6${selectedItem.name}§a!`);
         }
       }
     } else {
-      player.sendMessage(
-        `§cThis item is locked. You need §e${selectedItem.requirement - selectedItem.progress}§c more research to unlock §6${selectedItem.name}§c.`,
-      );
+      player.sendMessage(`§cThis item is locked. You need §e${selectedItem.requirement - selectedItem.progress}§c more research to unlock §6${selectedItem.name}§c.`);
     }
 
     defer(() => showItemListMenu(player, category, searchQuery));
@@ -394,7 +353,8 @@ function showSettingsMenu(player) {
 
   const form = new ModalFormData();
   form.title("Journey Mode Settings");
-  form.slider("Research Scaling Limit", 1, 64, 1, currentMultiplier);
+  
+  form.slider("Research Scaling Limit", 1, 64, { step: 1, defaultValue: currentMultiplier });
 
   form.show(player).then((response) => {
     if (response.canceled || !response.formValues) {
@@ -410,16 +370,14 @@ function showSettingsMenu(player) {
       player.sendMessage("§cFailed to save settings. Please try again.");
     }
 
-    defer(() => showMainMenu(player));
+    // REMOVED: No longer calling showMainMenu here so the GUI closes completely on submit!
   });
 }
 
 function showResetConfirmMenu(player) {
   const form = new ActionFormData();
   form.title("Reset Research Progress?");
-  form.body(
-    "§cWARNING: This will permanently delete all your unlocked items and research progress. This cannot be undone!§r",
-  );
+  form.body("§cWARNING: This will permanently delete all your unlocked items and research progress. This cannot be undone!§r");
   form.button("YES, Reset Everything");
   form.button("NO, Keep My Progress");
 
