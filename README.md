@@ -51,17 +51,3 @@ To unlock the **Settings** and **Reset Progress** options:
 
 - Minecraft Bedrock Edition (version 1.21.0 or higher)
 - Scripting API support enabled
-
-## Modification & Forking
-
-Feel free to fork, modify, and adapt this addon for your own use. The code is organized as follows:
-
-- `scripts/main.js` - Main entry point for the addon
-- `scripts/db.js` - Database and data management
-- `scripts/research.js` - Research system logic
-- `scripts/ui.js` - User interface components
-- `manifest.json` - Addon metadata and configuration
-
-## License
-
-Feel free to use, modify, and distribute as you see fit.
